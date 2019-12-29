@@ -10,12 +10,10 @@ def main():
 
     Bytes = f.read()
     Bits= BitArray(Bytes)
-    print(Bits[0:32])
-    print(Encryptor.SBlock.Encrypt(Bits[0:32], Bits[32:80]))
-    for b in Bits[0:64]:
-        print(b)
-    print(Bits[0:64])
-    print(Bytes.__len__())
+    example = BitArray(length=64)
+    example[0] = 1
+    print(example.bin)
+    print(Encryptor.DES.Encrypt(example, Bits[0:48]).bin)
     f.close()
 
 main()

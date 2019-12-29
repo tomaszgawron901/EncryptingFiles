@@ -4,8 +4,16 @@ from bitstring import BitArray
 
 class DES:
     @staticmethod
-    def Encrypt(bytes64, key):
-        pass
+    def Encrypt(bits64, key):
+        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
+            raise ("bits64 wrong defined.")
+        out = PermutationIP.Execute(bits64)
+        l_bits = out[0:32]
+        r_bits = out[32:64]
+        for i in range(0, 16):
+            l_bits, r_bits = DESCell.Encrypt(l_bits, r_bits, key)
+        out = l_bits+r_bits
+        return PermutationIP.Rendo(out)
 
 
 class DESCell:
@@ -15,10 +23,9 @@ class DESCell:
             raise ("l_bits wrong defined.")
         if (type(r_bits) is not BitArray) or (r_bits.__len__() != 32):
             raise ("r_bits wrong defined.")
-        if (type(key) is not BitArray) or (key.__len__() != 32):
+        if (type(key) is not BitArray) or (key.__len__() != 48):
             raise ("key wrong defined.")
-
-        return r_bits, l_bits
+        return r_bits, SBlock.Encrypt(r_bits, key).__xor__(l_bits)
 
 
 class SBlock:
@@ -30,11 +37,70 @@ class SBlock:
             raise ("key wrong defined.")
         out = ExpendingPermutation.Expend(bits32)
         out = out.__xor__(key)
-        out = SRow.Reduce(out)
+        out = SBoxSubstitution.Reduce(out)
+        out = PermutationP.Execute(out)
         return out
 
 
-class SRow:
+class PermutationP:
+    __LookUpTable = [
+        15, 6, 19, 20, 28, 11, 27, 16,
+        0, 14, 22, 25, 4, 17, 30, 9,
+        1, 7, 23, 13, 31, 26, 2, 8,
+        18, 12, 29, 5, 21, 10, 3, 24]
+
+    @classmethod
+    def Execute(cls, bits32):
+        if (type(bits32) is not BitArray) or (bits32.__len__() != 32):
+            raise ("bits32 wrong defined.")
+        out = BitArray(length=32)
+        for i in range(0, 32):
+            out[i] = bits32[cls.__LookUpTable[i]]
+        return out
+
+
+class PermutationIP:
+    __LookUpTable = [
+        57, 49, 41, 33, 25, 17, 9, 1,
+        59, 51, 43, 35, 27, 19, 11, 3,
+        61, 53, 45, 37, 29, 21, 13, 5,
+        63, 55, 47, 39, 31, 23, 15, 7,
+        56, 48, 40, 32, 24, 16, 8, 0,
+        58, 50, 42, 34, 26, 18, 10, 2,
+        60, 52, 44, 36, 28, 20, 12, 4,
+        62, 54, 46, 38, 30, 22, 14, 6
+    ]
+    __ReversedLookUpTable = [
+        39, 7, 47, 15, 55, 23, 63, 31,
+        38, 6, 46, 14, 54, 22, 62, 30,
+        37, 5, 45, 13, 53, 21, 61, 29,
+        36, 4, 44, 12, 52, 20, 60, 28,
+        35, 3, 43, 11, 51, 19, 59, 27,
+        34, 2, 42, 10, 50, 18, 58, 26,
+        33, 1, 41, 9, 49, 17, 57, 25,
+        32, 0, 40, 8, 48, 16, 56, 24,
+    ]
+
+    @classmethod
+    def Execute(cls, bits64):
+        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
+            raise ("bits64 wrong defined.")
+        out = BitArray(length=64)
+        for i in range(0, 64):
+            out[i] = bits64[cls.__LookUpTable[i]]
+        return out
+
+    @classmethod
+    def Rendo(cls, bits64):
+        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
+            raise ("bits64 wrong defined.")
+        out = BitArray(length=64)
+        for i in range(0, 64):
+            out[i] = bits64[cls.__ReversedLookUpTable[i]]
+        return out
+
+
+class SBoxSubstitution:
     __LookUpTable = [
         [
             [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
