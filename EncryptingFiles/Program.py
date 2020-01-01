@@ -5,17 +5,24 @@ from bitstring import BitArray
 from EncryptingFiles import Encryptor
 
 
+class FileEncryptor:
+    def __init__(self, algorithm):
+        self.algorithm = algorithm
+
+    def Encrypt(self, path):
+        pass
+
+
 def main():
     f = open("test.txt", "rb")
-
     Bytes = f.read()
     Bits= BitArray(Bytes)
     print(Bits.__len__())
     print(Bits[0:64].bin)
-    keys = Encryptor.TripleDES.CreateKey("4le fajny klucz")
-    out = Encryptor.TripleDES.Encrypt(Bits[0:64], keys)
+    key = "4leyy"
+    out = Encryptor.TripleDES(key).Encrypt(Bits[0:64])
     print(out.bin)
-    out = Encryptor.TripleDES.Decrypt(out, keys)
+    out = Encryptor.TripleDES(key).Decrypt(out)
     print(out.bin)
     f.close()
 

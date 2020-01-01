@@ -61,11 +61,11 @@ class DESKeyManager(abc.ABC):
 
     @abc.abstractmethod
     def GetKey(self):
-        pass
+        raise ("Not implemented Exception.")
 
     @abc.abstractmethod
     def Rotate(self):
-        pass
+        raise ("Not implemented Exception.")
 
     @staticmethod
     def RotateBits(bits, rotation):
@@ -120,6 +120,16 @@ class DESDescriptionKeyManager(DESKeyManager):
 
 
 class TripleDES:
+    def __init__(self, keys):
+        if type(keys) is str:
+            keys = self.CreateKey(keys)
+        if type(keys) is not list or keys.__len__() != 3:
+            raise ("keys wrong defined.")
+        for key in keys:
+            if (type(key) is not BitArray) or (key.__len__() != 64):
+                raise ("key wrong defined.")
+        self.keys = keys
+
     @staticmethod
     def __DataCheck(bits64, keys):
         if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
@@ -141,25 +151,29 @@ class TripleDES:
             key.append(DES.CreateKey(string[i:i+7]))
         return key
 
-
-    @staticmethod
-    def Encrypt(bits64, keys):
-        TripleDES.__DataCheck(bits64, keys)
+    def Encrypt(self, bits64):
+        TripleDES.__DataCheck(bits64, self.keys)
         out = bits64
-        for i in range(0, keys.__len__()):
-            out = DES.Encrypt(out, keys[i])
+        for i in range(0, self.keys.__len__()):
+            out = DES(self.keys[i]).Encrypt(out)
         return out
 
-    @staticmethod
-    def Decrypt(bits64, keys):
-        TripleDES.__DataCheck(bits64, keys)
+    def Decrypt(self, bits64):
+        TripleDES.__DataCheck(bits64, self.keys)
         out = bits64
-        for i in range(keys.__len__()-1, -1, -1):
-            out = DES.Decrypt(out, keys[i])
+        for i in range(self.keys.__len__()-1, -1, -1):
+            out = DES(self.keys[i]).Decrypt(out)
         return out
 
 
 class DES:
+    def __init__(self, key):
+        if type(key) is str:
+            key = self.CreateKey(key)
+        if (type(key) is not BitArray) or (key.__len__() != 64):
+            raise ("key wrong defined.")
+        self.key = key
+
     @staticmethod
     def __DataCheck(bits64, key):
         if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
@@ -178,10 +192,9 @@ class DES:
             key[i:i+8] = string[i:i+7]+BitArray(length=1)
         return key
 
-    @staticmethod
-    def Encrypt(bits64, key):
-        DES.__DataCheck(bits64, key)
-        key_manager = DESEncryptionKeyManager(key)
+    def Encrypt(self, bits64):
+        DES.__DataCheck(bits64, self.key)
+        key_manager = DESEncryptionKeyManager(self.key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
         r_bits = out[32:64]
@@ -190,10 +203,9 @@ class DES:
         out = l_bits + r_bits
         return PermutationIP.Rendo(out)
 
-    @staticmethod
-    def Decrypt(bits64, key):
-        DES.__DataCheck(bits64, key)
-        key_manager = DESDescriptionKeyManager(key)
+    def Decrypt(self, bits64):
+        DES.__DataCheck(bits64, self.key)
+        key_manager = DESDescriptionKeyManager(self.key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
         r_bits = out[32:64]
