@@ -8,12 +8,11 @@ def main():
 
     Bytes = f.read()
     Bits= BitArray(Bytes)
-    example = BitArray(length=64)
-    example[4] = 1
-    print(example.bin)
-    out = Encryptor.DES.Encrypt(example, Bits[0:48])
+    print(Bits[0:64].bin)
+    keys = [Bits[0:64], Bits[10:74], Bits[20:84]]
+    out = Encryptor.TripleDES.Encrypt(Bits[0:64], keys)
     print(out.bin)
-    out = Encryptor.DES.Decrypt(out, Bits[0:48])
+    out = Encryptor.TripleDES.Decrypt(out, keys)
     print(out.bin)
     f.close()
 

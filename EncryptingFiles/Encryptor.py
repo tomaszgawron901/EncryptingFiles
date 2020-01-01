@@ -1,9 +1,10 @@
 import numpy as np
 from bitstring import BitArray
+import abc
 
 
-class DESKeyManager(object):
-    __BitRotationTable = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
+class DESKeyManager(abc.ABC):
+    _BitRotationTable = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1]
 
     class PermutedChoice1:
         __LeftLookUpTable = [
@@ -56,7 +57,15 @@ class DESKeyManager(object):
         if (type(key) is not BitArray) or (key.__len__() != 64):
             raise ("key wrong defined.")
         self.leftKey, self.rightKey = self.PermutedChoice1.Execute(key)
-        self.rotationNumber = 0
+        self.rotationNumber: int = 0
+
+    @abc.abstractmethod
+    def GetKey(self):
+        pass
+
+    @abc.abstractmethod
+    def Rotate(self):
+        pass
 
     @staticmethod
     def RotateBits(bits, rotation):
@@ -65,85 +74,144 @@ class DESKeyManager(object):
         rotation = rotation % bits.__len__()
         return bits[rotation:]+bits[:rotation]
 
-    def __GetCurrentRotation(self):
-        return self.__BitRotationTable[self.rotationNumber]
+    def _GetCurrentRotation(self):
+        return self._BitRotationTable[self.rotationNumber]
 
 
 class DESEncryptionKeyManager(DESKeyManager):
     def __init__(self, key):
         super().__init__(key)
+        self.rotationNumber = 0
 
     def GetKey(self):
         self.Rotate()
         return self.PermutedChoice2.Execute(self.leftKey+self.rightKey)
 
     def Rotate(self):
-        if self.rotationNumber >= self.__BitRotationTable.__len__() or self.rotationNumber < 0:
+        if self.rotationNumber >= self._BitRotationTable.__len__() or self.rotationNumber < 0:
             raise ("Argument out of range Exception.")
-        self.leftKey = self.RotateBits(self.leftKey, self.__GetCurrentRotation())
-        self.rightKey = self.RotateBits(self.rightKey, self.__GetCurrentRotation())
+        self.leftKey = self.RotateBits(self.leftKey, self._GetCurrentRotation())
+        self.rightKey = self.RotateBits(self.rightKey, self._GetCurrentRotation())
 
         self.rotationNumber += 1
-        if self.rotationNumber >= self.__BitRotationTable.__len__():
+        if self.rotationNumber >= self._BitRotationTable.__len__():
             self.rotationNumber = 0
 
+
+class DESDescriptionKeyManager(DESKeyManager):
+    def __init__(self, key):
+        super().__init__(key)
+        self.rotationNumber = 15
+
+    def GetKey(self):
+        out = self.PermutedChoice2.Execute(self.leftKey+self.rightKey)
+        self.Rotate()
+        return out
+
+    def Rotate(self):
+        if self.rotationNumber >= self._BitRotationTable.__len__() or self.rotationNumber < 0:
+            raise ("Argument out of range Exception.")
+        self.leftKey = self.RotateBits(self.leftKey, -self._GetCurrentRotation())
+        self.rightKey = self.RotateBits(self.rightKey, -self._GetCurrentRotation())
+
+        self.rotationNumber -= 1
+        if self.rotationNumber < 0:
+            self.rotationNumber = 15
+
+
+class TripleDES:
+    @staticmethod
+    def __DataCheck(bits64, keys):
+        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
+            raise ("bits64 wrong defined.")
+        if keys.__len__ == 3:
+            raise ("keys wrong defined.")
+        for key in keys:
+            if (type(key) is not BitArray) or (key.__len__() != 64):
+                raise ("key wrong defined.")
+
+    @staticmethod
+    def Encrypt(bits64, keys):
+        TripleDES.__DataCheck(bits64, keys)
+        out = bits64
+        for i in range(0, keys.__len__()):
+            out = DES.Encrypt(out, keys[i])
+        return out
+
+    @staticmethod
+    def Decrypt(bits64, keys):
+        TripleDES.__DataCheck(bits64, keys)
+        out = bits64
+        for i in range(keys.__len__()-1, -1, -1):
+            out = DES.Decrypt(out, keys[i])
+        return out
 
 
 class DES:
     @staticmethod
-    def Encrypt(bits64, key):
+    def __DataCheck(bits64, key):
         if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
             raise ("bits64 wrong defined.")
+        if (type(key) is not BitArray) or (key.__len__() != 64):
+            raise ("key wrong defined.")
+
+    @staticmethod
+    def Encrypt(bits64, key):
+        DES.__DataCheck(bits64, key)
+        key_manager = DESEncryptionKeyManager(key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
         r_bits = out[32:64]
         for i in range(0, 16):
-            l_bits, r_bits = DESCell.Encrypt(l_bits, r_bits, key)
+            l_bits, r_bits = DESCell.Encrypt(l_bits, r_bits, key_manager.GetKey())
         out = l_bits + r_bits
         return PermutationIP.Rendo(out)
 
     @staticmethod
     def Decrypt(bits64, key):
-        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
-            raise ("bits64 wrong defined.")
+        DES.__DataCheck(bits64, key)
+        key_manager = DESDescriptionKeyManager(key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
         r_bits = out[32:64]
         for i in range(0, 16):
-            l_bits, r_bits = DESCell.Decrypt(l_bits, r_bits, key)
+            l_bits, r_bits = DESCell.Decrypt(l_bits, r_bits, key_manager.GetKey())
         out = l_bits + r_bits
         return PermutationIP.Rendo(out)
 
 
 class DESCell:
     @staticmethod
-    def Encrypt(l_bits, r_bits, key):
+    def __DataCheck(l_bits, r_bits, key):
         if (type(l_bits) is not BitArray) or (l_bits.__len__() != 32):
             raise ("l_bits wrong defined.")
         if (type(r_bits) is not BitArray) or (r_bits.__len__() != 32):
             raise ("r_bits wrong defined.")
         if (type(key) is not BitArray) or (key.__len__() != 48):
             raise ("key wrong defined.")
+
+    @staticmethod
+    def Encrypt(l_bits, r_bits, key):
+        DESCell.__DataCheck(l_bits, r_bits, key)
         return r_bits, SBlock.Encrypt(r_bits, key).__xor__(l_bits)
 
     @staticmethod
     def Decrypt(l_bits, r_bits, key):
-        if (type(l_bits) is not BitArray) or (l_bits.__len__() != 32):
-            raise ("l_bits wrong defined.")
-        if (type(r_bits) is not BitArray) or (r_bits.__len__() != 32):
-            raise ("r_bits wrong defined.")
-        if (type(key) is not BitArray) or (key.__len__() != 48):
-            raise ("key wrong defined.")
+        DESCell.__DataCheck(l_bits, r_bits, key)
         return SBlock.Encrypt(l_bits, key).__xor__(r_bits), l_bits
 
 
 class SBlock:
     @staticmethod
-    def Encrypt(bits32, key):
+    def __DataCheck(bits32, key):
         if (type(bits32) is not BitArray) or (bits32.__len__() != 32):
             raise ("bits32 wrong defined.")
         if (type(key) is not BitArray) or (key.__len__() != 48):
             raise ("key wrong defined.")
+
+    @staticmethod
+    def Encrypt(bits32, key):
+        SBlock.__DataCheck(bits32, key)
         out = ExpendingPermutation.Expend(bits32)
         out = out.__xor__(key)
         out = SBoxSubstitution.Reduce(out)
@@ -158,10 +226,14 @@ class PermutationP:
         1, 7, 23, 13, 31, 26, 2, 8,
         18, 12, 29, 5, 21, 10, 3, 24]
 
-    @classmethod
-    def Execute(cls, bits32):
+    @staticmethod
+    def __DataCheck(bits32):
         if (type(bits32) is not BitArray) or (bits32.__len__() != 32):
             raise ("bits32 wrong defined.")
+
+    @classmethod
+    def Execute(cls, bits32):
+        cls.__DataCheck(bits32)
         out = BitArray(length=32)
         for i in range(0, 32):
             out[i] = bits32[cls.__LookUpTable[i]]
@@ -190,10 +262,14 @@ class PermutationIP:
         32, 0, 40, 8, 48, 16, 56, 24,
     ]
 
-    @classmethod
-    def Execute(cls, bits64):
+    @staticmethod
+    def __DataCheck(bits64):
         if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
             raise ("bits64 wrong defined.")
+
+    @classmethod
+    def Execute(cls, bits64):
+        cls.__DataCheck(bits64)
         out = BitArray(length=64)
         for i in range(0, 64):
             out[i] = bits64[cls.__LookUpTable[i]]
@@ -201,8 +277,7 @@ class PermutationIP:
 
     @classmethod
     def Rendo(cls, bits64):
-        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
-            raise ("bits64 wrong defined.")
+        cls.__DataCheck(bits64)
         out = BitArray(length=64)
         for i in range(0, 64):
             out[i] = bits64[cls.__ReversedLookUpTable[i]]
@@ -262,10 +337,14 @@ class SBoxSubstitution:
 
     ]
 
-    @classmethod
-    def Reduce(cls, bites48):
+    @staticmethod
+    def __DataCheck(bites48):
         if (type(bites48) is not BitArray) or (bites48.__len__() != 48):
             raise ("bites48 wrong defined.")
+
+    @classmethod
+    def Reduce(cls, bites48):
+        cls.__DataCheck(bites48)
         out = BitArray()
         for i in range(0, 8, 1):
             out += SCell.Execute(bites48[i:i + 6], cls.__LookUpTable[i])
@@ -274,9 +353,13 @@ class SBoxSubstitution:
 
 class SCell:
     @staticmethod
-    def Execute(bits6, table):
+    def __DataCheck(bits6):
         if (type(bits6) is not BitArray) or (bits6.__len__() != 6):
             raise ("bits6 wrong defined.")
+
+    @staticmethod
+    def Execute(bits6, table):
+        SCell.__DataCheck(bits6)
         x = (bits6[0:1] + bits6[5:6]).uint
         y = bits6[1:5].uint
         out = BitArray(length=4)
@@ -291,10 +374,14 @@ class ExpendingPermutation:
         21, 22, 23, 24, 23, 24, 25, 26, 27, 28, 27, 28, 29, 30, 31, 0
     ]
 
-    @classmethod
-    def Expend(cls, bits):
+    @staticmethod
+    def __DataCheck(bits):
         if (type(bits) is not BitArray) or (bits.__len__() != 32):
             raise ("bits wrong defined.")
+
+    @classmethod
+    def Expend(cls, bits):
+        cls.__DataCheck(bits)
         output = BitArray(length=48)
         for i in range(0, 48, 1):
             output[i] = bits[cls.__LookUpTable[i]]
