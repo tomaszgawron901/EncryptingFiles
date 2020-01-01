@@ -130,6 +130,18 @@ class TripleDES:
             if (type(key) is not BitArray) or (key.__len__() != 64):
                 raise ("key wrong defined.")
 
+
+    @staticmethod
+    def CreateKey(string):
+        # String variable (No longer than 21.)
+        if string.__len__() > 21:
+            raise ("Key too large.")
+        key = []
+        for i in range(0, 21, 7):
+            key.append(DES.CreateKey(string[i:i+7]))
+        return key
+
+
     @staticmethod
     def Encrypt(bits64, keys):
         TripleDES.__DataCheck(bits64, keys)
@@ -154,6 +166,17 @@ class DES:
             raise ("bits64 wrong defined.")
         if (type(key) is not BitArray) or (key.__len__() != 64):
             raise ("key wrong defined.")
+
+    @staticmethod
+    def CreateKey(string):
+        # String variable (No longer than 7.)
+        if string.__len__() > 7:
+            raise ("Key too large.")
+        string = BitArray(bytes(string, 'utf8'))
+        key = BitArray(length=64)
+        for i in range(0, string.__len__(), 8):
+            key[i:i+8] = string[i:i+7]+BitArray(length=1)
+        return key
 
     @staticmethod
     def Encrypt(bits64, key):
