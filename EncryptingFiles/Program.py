@@ -10,10 +10,18 @@ class FileEncryptor:
         self.algorithm = algorithm
 
     def Encrypt(self, path):
-        pass
+        f = BitArray(open(path, "rb").read())
+        print(f.bin)
+        out = BitArray()
+        for i in range(0, f.__len__(), self.algorithm.DataSize):
+            out += self.algorithm.Encrypt(f[i:i+self.algorithm.DataSize])
+        print(out.bin)
+        return out
 
 
 def main():
+    s = FileEncryptor(Encryptor.TripleDES("4leyyfajnykey")).Encrypt("test.txt")
+
     f = open("test.txt", "rb")
     Bytes = f.read()
     Bits= BitArray(Bytes)

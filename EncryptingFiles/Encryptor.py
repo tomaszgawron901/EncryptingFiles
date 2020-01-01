@@ -120,26 +120,33 @@ class DESDescriptionKeyManager(DESKeyManager):
 
 
 class TripleDES:
+    DataSize = 64
+
     def __init__(self, keys):
         if type(keys) is str:
             keys = self.CreateKey(keys)
-        if type(keys) is not list or keys.__len__() != 3:
-            raise ("keys wrong defined.")
-        for key in keys:
-            if (type(key) is not BitArray) or (key.__len__() != 64):
-                raise ("key wrong defined.")
         self.keys = keys
 
-    @staticmethod
-    def __DataCheck(bits64, keys):
-        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
-            raise ("bits64 wrong defined.")
+    @property
+    def keys(self):
+        return self.__keys
+
+    @keys.setter
+    def keys(self, keys):
         if keys.__len__ == 3:
             raise ("keys wrong defined.")
         for key in keys:
-            if (type(key) is not BitArray) or (key.__len__() != 64):
+            if (type(key) is not BitArray) or (key.__len__() != self.DataSize):
                 raise ("key wrong defined.")
+        self.__keys = keys
 
+    @classmethod
+    def __OptimalizeData(cls, bits64):
+        if type(bits64) is not BitArray:
+            raise ("bits64 wrong defined.")
+        if bits64.__len__() > cls.DataSize:
+            raise ("Too large data set.")
+        return bits64+BitArray(length=cls.DataSize-bits64.__len__())
 
     @staticmethod
     def CreateKey(string):
@@ -152,14 +159,14 @@ class TripleDES:
         return key
 
     def Encrypt(self, bits64):
-        TripleDES.__DataCheck(bits64, self.keys)
+        bits64 = self.__OptimalizeData(bits64)
         out = bits64
         for i in range(0, self.keys.__len__()):
             out = DES(self.keys[i]).Encrypt(out)
         return out
 
     def Decrypt(self, bits64):
-        TripleDES.__DataCheck(bits64, self.keys)
+        bits64 = self.__OptimalizeData(bits64)
         out = bits64
         for i in range(self.keys.__len__()-1, -1, -1):
             out = DES(self.keys[i]).Decrypt(out)
@@ -167,19 +174,33 @@ class TripleDES:
 
 
 class DES:
+    DataSize = 64
+
     def __init__(self, key):
         if type(key) is str:
             key = self.CreateKey(key)
-        if (type(key) is not BitArray) or (key.__len__() != 64):
+        if (type(key) is not BitArray) or (key.__len__() != self.DataSize):
             raise ("key wrong defined.")
         self.key = key
 
-    @staticmethod
-    def __DataCheck(bits64, key):
-        if (type(bits64) is not BitArray) or (bits64.__len__() != 64):
-            raise ("bits64 wrong defined.")
-        if (type(key) is not BitArray) or (key.__len__() != 64):
+    @property
+    def key(self):
+        return self.__key
+
+    @key.setter
+    def key(self, key):
+        if (type(key) is not BitArray) or (key.__len__() != self.DataSize):
             raise ("key wrong defined.")
+        self.__key = key
+
+    @classmethod
+    def __OptimalizeData(cls, bits64):
+        if type(bits64) is not BitArray:
+            raise ("bits64 wrong defined.")
+        if bits64.__len__() > cls.DataSize:
+            raise ("Too large data set.")
+        return bits64+BitArray(length=cls.DataSize-bits64.__len__())
+
 
     @staticmethod
     def CreateKey(string):
@@ -193,7 +214,7 @@ class DES:
         return key
 
     def Encrypt(self, bits64):
-        DES.__DataCheck(bits64, self.key)
+        bits64 = self.__OptimalizeData(bits64)
         key_manager = DESEncryptionKeyManager(self.key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
@@ -204,7 +225,7 @@ class DES:
         return PermutationIP.Rendo(out)
 
     def Decrypt(self, bits64):
-        DES.__DataCheck(bits64, self.key)
+        bits64 = self.__OptimalizeData(bits64)
         key_manager = DESDescriptionKeyManager(self.key)
         out = PermutationIP.Execute(bits64)
         l_bits = out[0:32]
