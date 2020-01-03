@@ -2,6 +2,7 @@ from math import radians
 import numpy as np
 import bitstring
 from bitstring import BitArray
+from bitarray import bitarray
 from EncryptingFiles import Encryptor
 
 
@@ -10,9 +11,9 @@ class FileEncryptor:
         self.algorithm = algorithm
 
     def ReadFile(self, path):
-        file = open(path, "rb")
-        out = file.read()
-        file.close()
+        with open(path, "rb") as file:
+            out = bitarray()
+            out.fromfile(file)
         return out
 
     def WriteFile(self, bits, path):
@@ -21,11 +22,8 @@ class FileEncryptor:
         file.close()
 
     def Encrypt(self, path):
-        f = BitArray(self.ReadFile(path))
-        out = BitArray()
-        for i in range(0, f.__len__(), self.algorithm.DataSize):
-            out += self.algorithm.Encrypt(f[i:i+self.algorithm.DataSize])
-        self.WriteFile(out, path)
+        out = self.algorithm.Encrypt(self.ReadFile(path))
+        self.WriteFile(out.reshape((1, -1)), path)
 
     def Decrypt(self, path):
         f = BitArray(self.ReadFile(path))
@@ -36,8 +34,9 @@ class FileEncryptor:
 
 
 def main():
-    FileEncryptor(Encryptor.TripleDES("4leyyfajnykey")).Encrypt("test.txt")
-    FileEncryptor(Encryptor.TripleDES("4leyyfajnykey")).Decrypt("test.txt")
+    f = FileEncryptor(None).ReadFile("test.txt")
+    FileEncryptor(Encryptor.DES("4leyyf")).Encrypt("test.txt")
+    FileEncryptor(Encryptor.DES("4leyyf")).Decrypt("test.txt")
 
 
 main()
