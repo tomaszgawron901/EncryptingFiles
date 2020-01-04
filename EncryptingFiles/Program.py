@@ -22,21 +22,27 @@ class FileEncryptor:
         file.close()
 
     def Encrypt(self, path):
-        out = self.algorithm.Encrypt(self.ReadFile(path))
-        self.WriteFile(out.reshape((1, -1)), path)
+        out = self.algorithm.DataOptimalize(self.ReadFile(path))
+        out = self.algorithm.Encrypt(out)
+        out = out.reshape((1, -1))
+        out = np.squeeze(out)
+        out = out.tolist()
+        out = bitarray(out)
+        self.WriteFile(out, path)
 
     def Decrypt(self, path):
-        f = BitArray(self.ReadFile(path))
-        out = BitArray()
-        for i in range(0, f.__len__(), self.algorithm.DataSize):
-            out += self.algorithm.Decrypt(f[i:i+self.algorithm.DataSize])
+        out = self.algorithm.DataOptimalize(self.ReadFile(path))
+        out = self.algorithm.Decrypt(out)
+        out = out.reshape((1, -1))
+        out = np.squeeze(out)
+        out = out.tolist()
+        out = bitarray(out)
         self.WriteFile(out, path)
 
 
 def main():
-    f = FileEncryptor(None).ReadFile("test.txt")
-    FileEncryptor(Encryptor.DES("4leyyf")).Encrypt("test.txt")
-    FileEncryptor(Encryptor.DES("4leyyf")).Decrypt("test.txt")
+    FileEncryptor(Encryptor.TripleDES("4leyyf")).Encrypt("picture.jpg")
+    FileEncryptor(Encryptor.TripleDES("4leyyf")).Decrypt("picture.jpg")
 
 
 main()
