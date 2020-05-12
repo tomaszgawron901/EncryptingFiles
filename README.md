@@ -9,5 +9,5 @@ DES, Triple DES file encryption/decryption.
 - Chose algorithm. Enter 'DES' to chose DES algorithm or 'TDES' to chose triple DES algoripth.
 - Enter a key. For DES swith a lenght of 7 signs, for TDES with a lenght of 21.
 
-- To chow help type '?'.
+- To show help type '?'.
 - To go back to previous stage type 'B'.
